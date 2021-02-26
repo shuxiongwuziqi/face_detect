@@ -1,0 +1,19 @@
+{
+  "pages": [
+    "pages/firstStart/index"
+  ],
+  "window": {
+    "backgroundTextStyle": "light",
+    "navigationBarBackgroundColor": "#fff",
+    "navigationBarTitleText": "Weixin",
+    "navigationBarTextStyle": "black"
+  },
+  "plugins": {
+    "tfjsPlugin": {
+      "version": "0.1.0",
+      "provider": "wx6afed118d9e81df9"
+    }
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json"
+}

@@ -1,0 +1,4 @@
+<view class="container">
+  <camera device-position="front" flash="off" frame-size="small"></camera>
+  <text class="result">{{result}}</text>
+</view>
