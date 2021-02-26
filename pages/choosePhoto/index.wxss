@@ -1,0 +1,10 @@
+/* pages/takePhoto/index.wxss */
+canvas{
+  width: 576rpx; 
+  height: 704rpx;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}

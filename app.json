@@ -1,6 +1,7 @@
 {
   "pages": [
-    "pages/firstStart/index"
+    "pages/firstStart/index",
+    "pages/choosePhoto/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
