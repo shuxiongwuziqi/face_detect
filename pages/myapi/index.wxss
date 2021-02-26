@@ -1,0 +1,4 @@
+canvas{
+  width: 576rpx; 
+  height: 704rpx;
+}

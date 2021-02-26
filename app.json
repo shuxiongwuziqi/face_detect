@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/myapi/index",
     "pages/firstStart/index",
     "pages/choosePhoto/index"
   ],
