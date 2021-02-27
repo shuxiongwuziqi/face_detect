@@ -83,4 +83,4 @@ export async function load({
   return model;
 }
 
-export {NormalizedFace, BlazeFaceModel, BlazeFacePrediction} from './face';
+export {NormalizedFace, BlazeFaceModel} from './face';

@@ -1,7 +1,7 @@
 import * as blazeface from "../../model/index"
 Page({
   _modelUrl:"http://127.0.0.1:8080/model.json",
-  _testImageUrl:"http://127.0.0.1:8080/test.jfif",
+  _testImageUrl:"http://127.0.0.1:8080/test.jpg",
   _model: null,
   async onReady(){
     const model = await blazeface.load({modelUrl:this._modelUrl})
@@ -24,12 +24,7 @@ Page({
       x: 0,
       y: 0,
       success: async res=>{
-        const input = {
-          data: new Uint8Array(res.data),
-          width: res.width,
-          height: res.height
-        }
-        const preds = await this._model.estimateFaces(input);
+        const preds = await this._model.estimateFaces(new Uint8Array(res.data),res.width,res.height);
         console.log(preds)
         this.drawDetectInfo(preds)
       }

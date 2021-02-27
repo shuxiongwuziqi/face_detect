@@ -1,1 +1,4 @@
-<canvas canvas-id="canvas"></canvas>
+<view class="container">
+  <canvas canvas-id="canvas"></canvas>
+  <button bind:tap="chooseImage">选择相片</button>
+</view>
