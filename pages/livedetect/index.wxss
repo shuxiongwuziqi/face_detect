@@ -1,0 +1,20 @@
+camera{
+  width: 576rpx; 
+  height: 576rpx;
+  z-index: 1;
+}
+.mark-canvas{
+  position: absolute;
+  width: 576rpx; 
+  height: 576rpx;
+  z-index: 10;
+}
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+}
+.camera-container{
+  display: flex;
+  justify-content: flex-start;
+}

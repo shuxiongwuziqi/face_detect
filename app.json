@@ -1,5 +1,6 @@
 {
   "pages": [
+    "pages/livedetect/index",
     "pages/myapi/index",
     "pages/firstStart/index",
     "pages/choosePhoto/index"
