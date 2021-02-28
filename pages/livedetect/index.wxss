@@ -1,12 +1,12 @@
 camera{
   width: 576rpx; 
-  height: 576rpx;
+  height: 704rpx;
   z-index: 1;
 }
 .mark-canvas{
   position: absolute;
   width: 576rpx; 
-  height: 576rpx;
+  height: 704rpx;
   z-index: 10;
 }
 .container {

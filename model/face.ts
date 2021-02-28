@@ -164,7 +164,8 @@ export class BlazeFaceModel {
     })
   }
 
-  async postprocess(res: tf.Tensor3D){
+  async postprocess(res: tf.Tensor3D):Promise<NormalizedFace[]>{
+    // 获取解码后的预测框和对应置信度
     const [outputs, boxes, scores] =tf.tidy(()=>{
       const prediction = tf.squeeze(res); 
       const decodedBounds = decodeBounds(prediction as tf.Tensor2D, this.anchors);
@@ -173,29 +174,32 @@ export class BlazeFaceModel {
       return [prediction as tf.Tensor2D, decodedBounds, scores as tf.Tensor1D];
     })
 
+    // 非极大值抑制。因为没有同步模式，所以只能放到tidy外面
     const indicesTensor = await tf.image.nonMaxSuppressionAsync(
       boxes, scores, this.maxFaces, this.iouThreshold, this.scoreThreshold);
     const indices = indicesTensor.arraySync()
 
+    // 根据抑制结果，截取出有效的预测框、关键点和置信度
     const [topLefts, bottomRights, score, landmarks] = tf.tidy(()=>{
-      const suppressbox: tf.Tensor2D= tf.gather(boxes,indicesTensor)
-      const topLefts = tf.slice(suppressbox,[0,0],[-1,2])
+      const suppressBox: tf.Tensor2D= tf.gather(boxes,indicesTensor)
+      const topLefts = tf.slice(suppressBox,[0,0],[-1,2])
       .mul(this.scaleFactor).add(tf.tensor1d([this.offsetX,this.offsetY]))
-      const bottomRights = tf.slice(suppressbox,[0,2],[-1,2])
+      const bottomRights = tf.slice(suppressBox,[0,2],[-1,2])
       .mul(this.scaleFactor).add(tf.tensor1d([this.offsetX,this.offsetY]))
-      const score = tf.gather(scores,indicesTensor)
+      const suppressScore = tf.gather(scores,indicesTensor)
       const suppressOutput = tf.gather(outputs, indicesTensor)
       const landmarks = tf.slice(suppressOutput,[0,5],[-1,-1])
       .reshape([-1,NUM_LANDMARKS,2])
-      return [topLefts.arraySync(),bottomRights.arraySync(),score.arraySync(),landmarks.arraySync()]
+      return [topLefts.arraySync(),bottomRights.arraySync(),suppressScore.arraySync(),landmarks.arraySync()]
     })
     
-
+    // 删除没用的张量 防止内存泄漏
     outputs.dispose()
     boxes.dispose()
     scores.dispose()
 
-    const normalizedFaces = []
+    // 做关键点解码，封装成NormalizedFace数组
+    const normalizedFaces:NormalizedFace[] = []
     for(let i in indices){
       const normalizedLandmark = (landmarks[i]).map((landmark:[number,number])=>([
         (landmark[0]+this.anchorsData[indices[i]][0])*this.scaleFactor+this.offsetX,
@@ -212,7 +216,7 @@ export class BlazeFaceModel {
     indicesTensor.dispose()
     return normalizedFaces
   }
-  async estimateFaces(image: Uint8Array, width: number, height: number) {
+  async estimateFaces(image: Uint8Array, width: number, height: number): Promise<NormalizedFace[]>{
     const preprocessImage = await this.preprocess({data:image,width,height})
     const batchedPrediction = await this.blazeFaceModel.predict(preprocessImage);
     preprocessImage.dispose()

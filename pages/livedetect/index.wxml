@@ -1,7 +1,7 @@
 <view class="container">
   <view class="camera-container">
     <camera
-      device-position="front"
+      device-position="{{devicePosition}}"
       flash="off"
       frame-size="small"
     >
@@ -11,15 +11,5 @@
   </view>
   
   <text>result:{{result}}</text>
-  <text>screenWidth:{{screenWidth}}</text>
-  <text>screenHeight:{{screenHeight}}</text>
-  <text>windowWidth:{{windowWidth}}</text>
-  <text>windowHeight:{{windowHeight}}</text>
-  <text>scaleFactor:{{scaleFactor}}</text>
-  <text>imageWidth:{{imageWidth}}</text>
-  <text>imageHeight:{{imageHeight}}</text>
-  <text>dpr:{{dpr}}</text>
-  <text>factor:{{factor}}</text>
-  <text>offsetY:{{offsetY}}</text>
-  <text>offsetX:{{offsetX}}</text>
+  <button bind:tap="onTurnCamera">切换摄像头</button>
 </view>

@@ -1,0 +1,2 @@
+<!--pages/index/index.wxml-->
+<button bind:tap="onFaceDetect">开始人脸检测</button>

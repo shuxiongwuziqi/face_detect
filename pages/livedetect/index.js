@@ -2,20 +2,46 @@ import * as blazeface from '../../model/index'
 Page({
   data: {
     result: "载入中...",
-    factor:0
+    devicePosition: "back"
   },
   _modelUrl: 'http://127.0.0.1:8080/model.json',
   _model: null,
   _ctx: null,
   _count: 0,
+  _offsetX: 0,
+  _offsetY: 0,
+  _factor: 0,
+  _canvasWidth: 288,
+  _canvasHeight: 352,
+  _listener: null,
+
+  onTurnCamera(){
+    let devicePosition = ''
+    if(this.data.devicePosition === 'front'){
+      devicePosition = 'back'
+    }
+    else{
+      devicePosition = 'front'
+    }
+    wx.redirectTo({
+      url: `/pages/livedetect/index?devicePosition=${devicePosition}`,
+    })
+  },
+  onLoad(options){
+    if(typeof(options.devicePosition) != "undefined"){
+      this.setData({
+        devicePosition: options.devicePosition
+      })
+    }
+  },
   async onReady(){
     this.loadmodel(this._modelUrl)
-    const listener = this.addCameraLinstener()   
-    // listener.start();
+    this._listener = this.addCameraLinstener()   
+    this._listener.start();
     this.initCanvas()
   },
   async loadmodel(modelUrl){
-    const model = await blazeface.load({maxFaces:1, modelUrl:modelUrl});
+    const model = await blazeface.load({maxFaces:3, modelUrl:modelUrl});
     this._model = model;
   },
   addCameraLinstener(){
@@ -26,23 +52,15 @@ Page({
         const res = await this.detectFace(frame);
 
         // 计算偏离值和缩放比
-        if(this.data.factor === 0){
-          let offsetX=0, offsetY=0,factor=0
-          if(frame.height>frame.width){
-            factor = 288 / frame.width
-            offsetY = (frame.height*factor-288)/2
+        if(this._factor === 0){
+          if(frame.height > frame.width){
+            this._factor = this._canvasWidth / frame.width
+            this._offsetY = (frame.height * this._factor - this._canvasHeight) / 2
           }
           else{
-            factor = 288 / frame.height
-            offsetX = (frame.width*factor-288)/2
+            this._factor = this._canvasHeight / frame.height
+            this._offsetX = (frame.width * this._factor - this._canvasWidth) / 2
           }
-          this.setData({
-            factor,
-            offsetY,
-            offsetX,
-            imageWidth: frame.width,
-            imageHeight:frame.height,
-          })
         }
 
         this.clearMarkCanvas();
@@ -64,18 +82,9 @@ Page({
         const systemInfo = wx.getSystemInfoSync()
         const dpr = systemInfo.pixelRatio
         const screenWidth = systemInfo.screenWidth
-        const screenHeight = systemInfo.screenHeight
         canvas.width = res[0].width * dpr
         canvas.height = res[0].height * dpr
         const scaleFactor = screenWidth * dpr / 375
-        this.setData({
-          screenWidth,
-          screenHeight,
-          windowWidth: canvas.width,
-          windowHeight:canvas.height,
-          scaleFactor,
-          dpr
-        })
         ctx.scale(scaleFactor, scaleFactor)
 
         ctx.lineWidth = 3
@@ -92,28 +101,28 @@ Page({
     }
   },
   clearMarkCanvas(){
-    this._ctx.clearRect(0,0,288,288)
+    this._ctx.clearRect(0,0,this._canvasWidth,this._canvasHeight)
   },
   drawFace(res){
-    if(res.length>=1){
+    res.map(face=>{
       // 画关键点
-      const landmarks = res[0].landmarks
-      for(let i=0;i<6;++i){
+      const landmarks = face.landmarks
+      for(let i=0; i<6; ++i){
         const point = this.transformPoint([landmarks[i][0],landmarks[i][1]])
         this._ctx.fillRect(point[0],point[1],6,6)
-      } 
+      }
 
       // 画预测框
-      const start = this.transformPoint(res[0].topLeft)
-      const end = this.transformPoint(res[0].bottomRight);
+      const start = this.transformPoint(face.topLeft)
+      const end = this.transformPoint(face.bottomRight);
       const size = [end[0] - start[0], end[1] - start[1]];
       
       this._ctx.strokeRect(start[0], start[1], size[0], size[1]);
-    }
+    })
   },
   transformPoint(point){
-    const x = point[0] * this.data.factor - this.data.offsetX
-    const y = point[1] * this.data.factor - this.data.offsetY
+    const x = point[0] * this._factor - this._offsetX
+    const y = point[1] * this._factor - this._offsetY
     return [x,y]
   },
   showDetectInfo(res){
@@ -128,22 +137,8 @@ Page({
       })
     }
   },
-  takePhoto(){
-    const camera = wx.createCameraContext()
-    camera.takePhoto({
-      success(res){
-        console.log(res.tempImagePath)
-      }
-    })
-  },
-  drawFrame(frame){
-    wx.canvasPutImageData({
-      canvasId: 'camera-canvas',
-      data: new Uint8ClampedArray(frame.data),
-      height: frame.height,
-      width: frame.width,
-      x: 0,
-      y: 0,
-    })
+  onUnload(){
+    console.log("stop camera listener")
+    this._listener.stop()
   }
 })
