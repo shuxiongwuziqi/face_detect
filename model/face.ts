@@ -148,12 +148,18 @@ export class BlazeFaceModel {
 
   async preprocess(image:FrameData){
     return tf.tidy(()=>{
+      // 把uint8数据变成tensor数据
       const tensor3dImage = tf.browser.fromPixels(image);
+      // 截取图片中间正方形部分
       const squareImage = this.makeSquare(tensor3dImage)
+      // 缩小图片到 128*128
       const resizedImage = tf.image.resizeBilinear(squareImage,
         [this.width, this.height]);
-      const tensor4dImage = tf.expandDims(tf.cast((resizedImage as tf.Tensor), 'float32'), 0)
-      const normalizedImage = tf.mul(tf.sub(tf.div(tensor4dImage, 255), 0.5), 2);
+      // 图片添加一个纬度（batch_size），用于适应预测输入要求
+      const tensor4dImage = tf.expandDims(resizedImage, 0)
+      // 图片从[0,255]归一化到[-1,1]
+      // int[0,255] -cast-> float[0,255] -div-> float[0,2] -sub-> float[-1,1]
+      const normalizedImage = tf.sub(tf.div(tf.cast(tensor4dImage, 'float32'), 127.5), 1);
       return normalizedImage
     })
   }

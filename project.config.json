@@ -48,8 +48,8 @@
   },
   "scripts": {
     "beforeCompile": "npm run tsc",
-    "beforePreview": "npm run tsc",
-    "beforeUpload": "npm run tsc"
+    "beforePreview": "",
+    "beforeUpload": ""
   },
   "staticServerOptions": {
     "baseURL": "",

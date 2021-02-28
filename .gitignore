@@ -1,3 +1,5 @@
 miniprogram_npm
 node_modules
 model/*.js
+
+project.private*

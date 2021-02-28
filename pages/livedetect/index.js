@@ -4,14 +4,14 @@ Page({
     result: "载入中...",
     factor:0
   },
-  _modelUrl: 'http://192.168.3.5:8080/model.json',
+  _modelUrl: 'http://127.0.0.1:8080/model.json',
   _model: null,
   _ctx: null,
   _count: 0,
   async onReady(){
     this.loadmodel(this._modelUrl)
     const listener = this.addCameraLinstener()   
-    listener.start();
+    // listener.start();
     this.initCanvas()
   },
   async loadmodel(modelUrl){
