@@ -1,0 +1,35 @@
+/* pages/ui/index.wxss */
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  height: 100%;
+}
+.camera-container{
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  align-items: center;
+  padding-top: 100rpx;
+}
+text{
+  margin-top: 50rpx;
+}
+canvas{
+  position: absolute;
+  width: 500rpx;
+  height: 500rpx;
+}
+image{
+  position: absolute;
+  width: 550rpx;
+  height: 550rpx;
+}
+camera{
+  width: 500rpx;
+  height: 500rpx;
+}
+page{
+  height: 100%;
+}
+

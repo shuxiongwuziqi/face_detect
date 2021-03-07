@@ -1,0 +1,16 @@
+<!--pages/ui/index.wxml-->
+<view class="container" style="background-color: {{backgroundColor}};">
+  <view class="camera-container">
+    <camera
+        device-position="{{devicePosition}}"
+        flash="off"
+        frame-size="small"
+      >
+      </camera>
+    <canvas type="2d" id="canvas"></canvas>
+    <!-- <image src="/image/cameraMask.svg"></image> -->
+  </view>
+  <text>{{result}}</text>
+</view>
+
+
