@@ -8,6 +8,9 @@ Page({
     devicePosition: 'front',
     faceImage: '',
     status: 'LOADING_MODEL',
+    popupSetting: false,
+    modelUrl: 'http://127.0.0.1:8080/model.json',
+    faceServerHost: 'http://192.168.199.134:5000/',
     colorMap: {
       'WHITE': '#FFFFCC',
       'GREEN': '#1d953f',
@@ -23,7 +26,8 @@ Page({
       'TOO_CLOSE': 'RED',
       'NOT_CENTER': 'RED',
       'BLUR': 'RED',
-      'WEAK_LIGHT': 'RED',
+      'TOO_BRIGHT': 'RED',
+      'TOO_DIM': 'RED',
       'LOADING_MODEL': 'YELLOW',
     },
     statusDisc: {
@@ -35,14 +39,25 @@ Page({
       'TOO_CLOSE': '请离远点',
       'NOT_CENTER': '人脸偏离',
       'BLUR': '图片模糊',
-      'WEAK_LIGHT': '光照不足',
+      'TOO_DIM': '光照不足',
+      'TOO_BRIGHT': '曝光',
       'LOADING_MODEL': '模型载入',
     },
+    laplacianFilter: [
+      [[[1],[1],[1]],[[1],[1],[1]],[[1],[1],[1]]],
+      [[[1],[1],[1]],[[-8],[-8],[-8]],[[1],[1],[1]]],
+      [[[1],[1],[1]],[[1],[1],[1]],[[1],[1],[1]]],
+    ],
+    dimThreshold: 80,
+    brightThreshold: 150,
+    blurThreshold: 500,
+    brightMean:0,
+    blurRate: 0,
+    faceImage: null,
+    faceSize: 0
   },
   _ctx: null,
   _canvas_size: 250,
-  _modelUrl: 'http://192.168.3.7:8080/model.json',
-  _faceServerHost: 'http://10.242.116.254:5000/',
   _model: null,
   _frameWidth: 0,
   _frameHeight: 0,
@@ -51,9 +66,20 @@ Page({
   _preStatus: 'LOADING_MODEL',
 
  
-  
+  changeModelUrl(event){
+    console.log(event.detail.value)
+    this.setData({
+      modelUrl: event.detail.value
+    })
+  },
+  changeFaceServerHost(event){
+    console.log(event.detail.value)
+    this.setData({
+      faceServerHost: event.detail.value
+    })
+  },
   async onReady(){
-    this.loadmodel(this._modelUrl)
+    this.loadmodel(this.data.modelUrl)
     this._listener = this.addCameraLinstener()   
     this._listener.start();
   },
@@ -65,32 +91,35 @@ Page({
     const camera = wx.createCameraContext();
     const listener = camera.onCameraFrame(async frame=> {
       this._count++;
-      if (this._count === 10) {      
+      if (this._count === 10) {    
         const res = await this.detectFace(frame);
         // 计算偏离值和缩放比
         if(this._frameWidth === 0){
           this._frameWidth = frame.width
           this._frameHeight = frame.height
         }
-        const status = this.checkDetect(res)
+        const status = this.checkFace(frame, res)
         if(this._preStatus != status){
           this._preStatus = status
           this.setData({status})
         }
 
         if(status === 'DETECT_SUCCESS'){
-          wx.showLoading({
-            title: '等待上传',
-            mask: true
-          })
           this._listener.stop()
           this.lockFace()
-          this.faceReconition(frame, res)
+          this.faceReconition()
         }
+
+        // reset count
         this._count = 0;
       }
     });
     return listener
+  },
+  popupSetting(){
+    this.setData({
+      popupSetting: true
+    })
   },
   lockFace(){
     const ctx = wx.createCameraContext()
@@ -104,50 +133,28 @@ Page({
       }
     })
   },
-  faceReconition(frame, res){
-    const faceInfo = res[0]
-    const start = faceInfo.topLeft.map(v=>Math.round(v))
-    const end = faceInfo.bottomRight.map(v=>Math.round(v))
-    const size = [end[0]-start[0], end[1]-start[1]]
+  faceReconition(){
 
-    const imageTensor = tf.browser.fromPixels({
-      data:new Uint8Array(frame.data),
-      width:frame.width,
-      height:frame.height
+    this.setData({
+      status:'RECOGNITION_SUCESS'
     })
-    const image = tf.tidy(()=>{
-      const croppedImage = tf.slice(imageTensor,
-        [start[1],start[0],0],
-        [size[1],size[0],3])
-      const flattedImage = croppedImage.reshape([-1])
-      return flattedImage.arraySync()
-    })
-    const base64Image = wx.arrayBufferToBase64(image)
-    console.log(size)
-    console.log(base64Image)
-    wx.request({
-      url: this._faceServerHost+'search',
-      data: {
-        image: base64Image,
-        width: size[0],
-        height: size[1],
-        channel: 3
-      },
-      method: 'POST',
-      success: res=>{
-        console.log(res)
-        if(res.statusCode === 200){
-          this.setData({
-            status:'RECOGNITION_SUCESS'
-          })
-          this.showStudentInfo(res)
-          wx.hideLoading()
-        }
-      },
-      fail: e=>{
-        console.log(e)
+    const fakeRes = {
+      data:{
+        'msg': 'success',
+        'id': '20172131096',
+        'name': '吴梓祺',
+        'exam': '计算机原理',
+        'room': '主教学楼 西340',
+        'time': '9:30-11:30',
       }
+    }
+    this.showStudentInfo(fakeRes)
+
+    wx.showToast({
+      title: '识别成功',
+      icon: 'success'
     })
+
   },
   showStudentInfo(res){
     const info = res['data']
@@ -161,34 +168,73 @@ Page({
       status: 'DETECT_NOT_FOUND'
     })
   },
-  checkDetect(res){
+  checkFace(frame, res){
     const len = res.length
-    if(len === 0){
+    if(len === 0)
       return 'DETECT_NOT_FOUND'
-    }
-    else if(len > 1){
+    if(len > 1)
       return 'DETECT_MULTI_FACES'
-    }
-    else{
-      const faceInfo = res[0]
-      const start = faceInfo.topLeft
-      const end = faceInfo.bottomRight
-      const size = [end[0] - start[0], end[1] - start[1]];
-      if(size[0] < 0.5*this._frameWidth){
-        return 'TOO_FAR'
-      }
-      else if(size[0] > 0.8*this._frameWidth){
-        return 'TOO_CLOSE'
-      }
-      const mid = [start[0]+size[0]/2,start[1]+size[1]/2]
-      if(mid[0]<this._frameWidth*0.4||mid[0]>this._frameWidth*0.6){
-        return 'NOT_CENTER'
-      }
-      if(mid[1]<this._frameHeight*0.4||mid[1]>this._frameHeight*0.6){
-        return 'NOT_CENTER'
-      }
-      return 'DETECT_SUCCESS'
-    }
+    const faceInfo = res[0]
+    let start = faceInfo.topLeft.map(v=>Math.round(v))
+    const end = faceInfo.bottomRight.map(v=>Math.round(v))
+    let size = [end[0]-start[0], end[1]-start[1]]
+    // 为预测框 加padding
+    // start = start.map(v=>Math.round(v-size[0]*0.2))
+    // size = size.map(v=>Math.round(v*1.4))
+    start[1] = Math.round(start[1] - size[0]*0.2)
+    size[1] = Math.round(size[1]*1.2)
+
+    if(size[0] < 0.5 * this._frameWidth)
+      return 'TOO_FAR'
+    if(size[0] > 0.8*this._frameWidth)
+      return 'TOO_CLOSE'
+    if(start[0]<0||end[0]>this._frameWidth)
+      return 'NOT_CENTER'
+    // camera在frame的数据上做了缩放居中
+    // 所以在检测高度上的居中需要这样算
+    const temp = (this._frameHeight-this._frameWidth)/2
+    if(start[1]-temp<0||end[1]-temp>this._frameWidth)
+      return 'NOT_CENTER'
+    
+    const [faceImage, brightMean] = tf.tidy(()=>{
+      const imageTensor = tf.browser.fromPixels({
+        data:new Uint8Array(frame.data),
+        width:frame.width,
+        height:frame.height
+      })
+      const croppedImage = tf.slice(imageTensor,
+        [start[1],start[0],0],
+        [size[1],size[0],3])
+        .expandDims(0)
+        const flattedImage = croppedImage.reshape([-1])
+        const brightMean = tf.mean(flattedImage)
+      return [flattedImage.arraySync(),brightMean.arraySync()]
+    })
+    // console.log(tf.memory())
+    this.setData({brightMean,faceImage,faceSize:size})
+    if(brightMean>this.data.brightThreshold)
+      return 'TOO_BRIGHT'
+    if(brightMean<this.data.dimThreshold)
+      return 'TOO_DIM'
+    // if(blurRate<this.data.blurThreshold)
+    //   return 'BLUR'    
+    return 'DETECT_SUCCESS'
+    
+  },
+  sliderDimValueChange(event){
+    this.setData({
+      dimThreshold: event.detail.value
+    }) 
+  },
+  sliderBrightValueChange(event){
+    this.setData({
+      brightThreshold: event.detail.value
+    })
+  },
+  sliderBlurValueChange(event){
+    this.setData({
+      blurThreshold: event.detail.value
+    })
   },
   initCanvas(){
     const query = wx.createSelectorQuery()
@@ -213,8 +259,9 @@ Page({
   },
   async detectFace(frame) {
     if (this._model) { 
-      return await this._model.estimateFaces(new Uint8Array(frame.data),
+      const res = await this._model.estimateFaces(new Uint8Array(frame.data),
       frame.width,frame.height);
+      return res
     }
   },
   turnWindowColor(colorName){
