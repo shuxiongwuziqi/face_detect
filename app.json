@@ -5,11 +5,13 @@
     "pages/livedetect/index",
     "pages/myapi/index",
     "pages/firstStart/index",
-    "pages/choosePhoto/index"
+    "pages/choosePhoto/index",
+    "pages/confirm/index",
+    "pages/list/index"
   ],
   "window": {
     "backgroundTextStyle": "light",
-    "navigationBarBackgroundColor": "#fff",
+    "navigationBarBackgroundColor": "#FFFFCC",
     "navigationBarTitleText": "Weixin",
     "navigationBarTextStyle": "black"
   },

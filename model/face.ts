@@ -164,7 +164,7 @@ export class BlazeFaceModel {
     })
   }
 
-  async postprocess(res: tf.Tensor3D):Promise<NormalizedFace[]>{
+  async postprocess(res: tf.Tensor3D,returnLandmark:boolean):Promise<NormalizedFace[]>{
     // 获取解码后的预测框和对应置信度
     const [outputs, boxes, scores] =tf.tidy(()=>{
       const prediction = tf.squeeze(res); 
@@ -187,10 +187,13 @@ export class BlazeFaceModel {
       const bottomRights = tf.slice(suppressBox,[0,2],[-1,2])
       .mul(this.scaleFactor).add(tf.tensor1d([this.offsetX,this.offsetY]))
       const suppressScore = tf.gather(scores,indicesTensor)
-      const suppressOutput = tf.gather(outputs, indicesTensor)
-      const landmarks = tf.slice(suppressOutput,[0,5],[-1,-1])
-      .reshape([-1,NUM_LANDMARKS,2])
-      return [topLefts.arraySync(),bottomRights.arraySync(),suppressScore.arraySync(),landmarks.arraySync()]
+      if(returnLandmark){
+        const suppressOutput = tf.gather(outputs, indicesTensor)
+        const landmarks = tf.slice(suppressOutput,[0,5],[-1,-1])
+        .reshape([-1,NUM_LANDMARKS,2])
+        return [topLefts.arraySync(),bottomRights.arraySync(),suppressScore.arraySync(),landmarks.arraySync()]
+      }
+      return [topLefts.arraySync(),bottomRights.arraySync(),suppressScore.arraySync(),[]]
     })
     
     // 删除没用的张量 防止内存泄漏
@@ -201,25 +204,29 @@ export class BlazeFaceModel {
     // 做关键点解码，封装成NormalizedFace数组
     const normalizedFaces:NormalizedFace[] = []
     for(let i in indices){
-      const normalizedLandmark = (landmarks[i]).map((landmark:[number,number])=>([
-        (landmark[0]+this.anchorsData[indices[i]][0])*this.scaleFactor+this.offsetX,
-        (landmark[1]+this.anchorsData[indices[i]][1])*this.scaleFactor+this.offsetY
-      ]))
-      const normalizedFace = {
+      const normalizedFace:NormalizedFace = {
         topLeft: topLefts[i],
         bottomRight: bottomRights[i],
-        landmarks: normalizedLandmark,
         probability: score[i]
+      }
+      if(returnLandmark){
+        const normalizedLandmark = (landmarks[i]).map((landmark:[number,number])=>([
+          (landmark[0]+this.anchorsData[indices[i]][0])*this.scaleFactor+this.offsetX,
+          (landmark[1]+this.anchorsData[indices[i]][1])*this.scaleFactor+this.offsetY
+        ]))
+        normalizedFace.landmarks = normalizedLandmark
       }
       normalizedFaces.push(normalizedFace)
     }
     indicesTensor.dispose()
     return normalizedFaces
   }
-  async estimateFaces(image: Uint8Array, width: number, height: number): Promise<NormalizedFace[]>{
+  async estimateFaces(image: Uint8Array, width: number, height: number, returnLandmark:boolean=true): Promise<NormalizedFace[]>{
     const preprocessImage = await this.preprocess({data:image,width,height})
     const batchedPrediction = await this.blazeFaceModel.predict(preprocessImage);
     preprocessImage.dispose()
-    return this.postprocess(batchedPrediction as tf.Tensor3D)
+    const result = this.postprocess(batchedPrediction as tf.Tensor3D, returnLandmark)
+    batchedPrediction.dispose()
+    return result
   }
 }
