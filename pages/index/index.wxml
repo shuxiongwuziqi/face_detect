@@ -5,7 +5,7 @@
   <view class="camera-container">
     <camera
         device-position="{{devicePosition}}"
-        flash="auto"
+        flash="{{flash}}"
         frame-size="small"
       >
     </camera>
@@ -17,8 +17,8 @@
   <view wx:if="{{status != 'RECOGNITION_SUCESS'}}" class="detect-info-container">
     <text>{{statusDisc[status]}}</text>
     <text>光照强度：{{brightMean}}</text>
-    <text>模糊度：{{blurRate}}</text>
-    <button bind:tap="popupSetting" class="bottombtn">设置面板</button>
+    <text>关键点帧间距离：{{distance}}</text>
+    <button bind:tap="openSetting" class="bottombtn">设置面板</button>
   </view>
   <view wx:else class="stu-info-container">
     <text class="stu-info-title"> 学生信息</text>
@@ -33,15 +33,16 @@
       bind:tap="onConfirm"
     >确认</button>
   </view>
-  <l-arc-popup show="{{popupSetting}}">
+  <l-arc-popup show="{{popupSetting}}" arc-radius="50" locked="{{true}}">
     <view class="threshold-container">
-      <text>光照强度阈值：{{dimThreshold}}~{{brightThreshold}}</text>
+      <text>光照强度阈值：{{threshold['dim']}}~{{threshold['bright']}}</text>
       <view class="slider-container">
         <slider 
           min="0" 
           max="127" 
-          value="{{dimThreshold}}" 
-          bindchange="sliderDimValueChange"
+          value="{{threshold['dim']}}" 
+          bindchange="sliderValueChange"
+          data-threshold-name="dim"
           activeColor='#cecacb' 
           backgroundColor='#f26a36'
           block-size="20">
@@ -49,8 +50,9 @@
         <slider 
           min="129" 
           max="255" 
-          value="{{brightThreshold}}" 
-          bindchange="sliderBrightValueChange"
+          value="{{threshold['bright']}}" 
+          bindchange="sliderValueChange"
+          data-threshold-name="bright"
           activeColor='#f26a36' 
           backgroundColor='#cecacb'
           block-size="20">
@@ -58,25 +60,24 @@
       </view>
     </view>
     <view class="threshold-container">
-      <text>模糊度阈值：{{blurThreshold}}</text>
+      <text>帧间关键点距离阈值：{{threshold['distance']}}</text>
       <slider 
         min="1" 
-        max="1000" 
-        value="{{blurThreshold}}" 
-        bindchange="sliderBlurValueChange"
+        max="10" 
+        value="{{threshold['distance']}}" 
+        bindchange="sliderValueChange"
+        data-threshold-name="distance"
         activeColor='#cecacb' 
         backgroundColor='#f26a36'
         block-size="20">
       </slider>
     </view>
     <view class="input-container">
-      <text>模型地址:</text>
-      <input placeholder="输入模型地址" value="{{modelUrl}}" bindblur="changeModelUrl"/>
-    </view>
-    <view class="input-container">
       <text>人脸服务地址:</text>
       <input placeholder="人脸服务地址" value="{{faceServerHost}}" bindblur="changeFaceServerHost"/>
     </view>
+    <button bind:tap="changeFlash">手电筒</button>
+    <button bind:tap="closeSetting" class="bottombtn" type="primary">关闭设置面板</button>
   </l-arc-popup >
 </view>
 

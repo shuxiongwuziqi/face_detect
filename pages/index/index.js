@@ -4,13 +4,11 @@ import * as tf from '@tensorflow/tfjs-core'
 Page({
   data:{
     backgroundColor: '',
-    result: '模型载入中',
-    devicePosition: 'front',
-    faceImage: '',
+    devicePosition: 'back',
+    flash: "off",
     status: 'LOADING_MODEL',
     popupSetting: false,
-    modelUrl: 'http://127.0.0.1:8080/model.json',
-    faceServerHost: 'http://192.168.199.134:5000/',
+    faceServerHost: 'http://192.168.8.114:5000/',
     colorMap: {
       'WHITE': '#FFFFCC',
       'GREEN': '#1d953f',
@@ -28,6 +26,7 @@ Page({
       'BLUR': 'RED',
       'TOO_BRIGHT': 'RED',
       'TOO_DIM': 'RED',
+      'NOT_FRONT_FACE': 'RED',
       'LOADING_MODEL': 'YELLOW',
     },
     statusDisc: {
@@ -42,36 +41,28 @@ Page({
       'TOO_DIM': '光照不足',
       'TOO_BRIGHT': '曝光',
       'LOADING_MODEL': '模型载入',
+      'NOT_FRONT_FACE': '正脸面向摄像头'
     },
-    laplacianFilter: [
-      [[[1],[1],[1]],[[1],[1],[1]],[[1],[1],[1]]],
-      [[[1],[1],[1]],[[-8],[-8],[-8]],[[1],[1],[1]]],
-      [[[1],[1],[1]],[[1],[1],[1]],[[1],[1],[1]]],
-    ],
-    dimThreshold: 80,
-    brightThreshold: 150,
-    blurThreshold: 500,
+    threshold: {
+      'dim': 80,
+      'bright': 150,
+      'distance': 3,
+      'eyeNoseArea': 0.05
+    },
+    distance: 10,
     brightMean:0,
-    blurRate: 0,
     faceImage: null,
     faceSize: 0
   },
-  _ctx: null,
-  _canvas_size: 250,
   _model: null,
   _frameWidth: 0,
   _frameHeight: 0,
   _listener: null,
   _count: 0,
   _preStatus: 'LOADING_MODEL',
+  _preLandmark: null,
 
  
-  changeModelUrl(event){
-    console.log(event.detail.value)
-    this.setData({
-      modelUrl: event.detail.value
-    })
-  },
   changeFaceServerHost(event){
     console.log(event.detail.value)
     this.setData({
@@ -79,7 +70,7 @@ Page({
     })
   },
   async onReady(){
-    this.loadmodel(this.data.modelUrl)
+    this.loadmodel(this.data.faceServerHost+'static/blaze_face_model/model.json')
     this._listener = this.addCameraLinstener()   
     this._listener.start();
   },
@@ -120,9 +111,16 @@ Page({
     });
     return listener
   },
-  popupSetting(){
+  openSetting(){
+    this._listener.stop()
     this.setData({
       popupSetting: true
+    })
+  },
+  closeSetting(){
+    this._listener.start()
+    this.setData({
+      popupSetting: false
     })
   },
   lockFace(){
@@ -141,13 +139,12 @@ Page({
     const base64Image = wx.arrayBufferToBase64(this.data.faceImage)
     const size = this.data.faceSize
     wx.request({
-      url: this.data.faceServerHost+'api/v1.0/face_recognize',
+      url: this.data.faceServerHost+'search',
       data: {
         imageBase64: base64Image,
         width: size[0],
         height: size[1],
-        channel: 3,
-        blurThreshold: this.data.blurThreshold
+        channel: 3
       },
       method: 'POST',
       success: res=>{
@@ -162,15 +159,16 @@ Page({
             icon: 'success'
           })
         }
-        else if(res.statusCode === 201){
+        else{
+          wx.showToast({
+            title: '返回错误',
+            icon: 'error'
+          })
           this.setData({
-            status:'BLUR'
+            status:'DETECT_NOT_FOUND'
           })
           this._listener.start()
         }
-        this.setData({
-          blurRate: res.data.blurRate
-        })
       },
       fail: e=>{
         console.log(e)
@@ -195,17 +193,25 @@ Page({
   },
   onConfirm(){
     //request to confirm
-    wx.request({
-      url: this.data.faceServerHost+'api/v1.0/sign_in',
-      data:{
-        'sid': 1,
-        'sign_in_info': true
-      }
-    })
+    // wx.request({
+    //   url: this.data.faceServerHost+'api/v1.0/sign_in',
+    //   data:{
+    //     'sid': 1,
+    //     'sign_in_info': true
+    //   },
+    //   method: 'POST'
+    // })
     this._listener.start()
     this.setData({
       status: 'DETECT_NOT_FOUND'
     })
+  },
+  changeFlash(){
+    const flash = this.data.flash
+    if(flash === 'off')
+      this.setData({flash: 'torch'})
+    else
+      this.setData({flash: 'off'})
   },
   checkFace(frame, res){
     const len = res.length
@@ -233,8 +239,36 @@ Page({
     // 所以在检测高度上的居中需要这样算
     const temp = (this._frameHeight-this._frameWidth)/2
     if(start[1]-temp<0||end[1]-temp>this._frameWidth)
-      return 'NOT_CENTER'
+    return 'NOT_CENTER'
     
+    const landmarks = faceInfo.landmarks
+    let distance = 100
+    if(this._preLandmark != null){
+      distance = tf.tidy(()=>{
+        const pre =  tf.tensor(this._preLandmark)
+        const cur = tf.tensor(landmarks)
+        const dis = pre.sub(cur).norm('euclidean',1).mean()
+        return dis.arraySync()
+      })
+      this.setData({distance})
+    }
+    this._preLandmark = landmarks
+    if(distance > this.data.threshold['distance'])
+      return 'BLUR'
+
+    // const [a, b] = landmarks[0]
+    // const [c,d] = landmarks[1]
+    // const [e, f] = landmarks[2]
+
+    // 计算双眼和鼻子之间围成的面积
+    // let eyeNoseArea = Math.abs(a*d+b*e+c*f-a*f-b*c-d*e)/2
+
+    // 双眼和嘴之间围成的面积三角形面积 除以 人脸预测框的面积
+    // eyeNoseArea = eyeNoseArea / size[0] / size[1]
+    // this.setData({eyeNoseArea})
+    // if(eyeNoseArea < this.data.threshold['eyeNoseArea'])
+    //   return 'NOT_FRONT_FACE'
+
     const [faceImage, brightMean] = tf.tidy(()=>{
       const imageTensor = tf.browser.fromPixels({
         data:new Uint8Array(frame.data),
@@ -251,50 +285,21 @@ Page({
     })
     // console.log(tf.memory())
     this.setData({brightMean,faceImage,faceSize:size})
-    if(brightMean>this.data.brightThreshold)
+    if(brightMean>this.data.threshold['bright'])
       return 'TOO_BRIGHT'
-    if(brightMean<this.data.dimThreshold)
+    if(brightMean<this.data.threshold['dim'])
       return 'TOO_DIM'
     // if(blurRate<this.data.blurThreshold)
     //   return 'BLUR'    
-    return 'DETECT_SUCCESS'
-    
+    return 'DETECT_SUCCESS'    
   },
-  sliderDimValueChange(event){
-    this.setData({
-      dimThreshold: event.detail.value
-    }) 
-  },
-  sliderBrightValueChange(event){
-    this.setData({
-      brightThreshold: event.detail.value
-    })
-  },
-  sliderBlurValueChange(event){
-    this.setData({
-      blurThreshold: event.detail.value
-    })
-  },
-  initCanvas(){
-    const query = wx.createSelectorQuery()
-    query.select('#canvas')
-      .fields({ node: true, size: true })
-      .exec((res) => {
-        const canvas = res[0].node
-        const ctx = canvas.getContext('2d')
-
-        const systemInfo = wx.getSystemInfoSync()
-        const dpr = systemInfo.pixelRatio
-        const screenWidth = systemInfo.screenWidth
-        
-        canvas.width = res[0].width * dpr
-        canvas.height = res[0].height * dpr
-        
-        const scaleFactor = screenWidth * dpr / 375
-        ctx.scale(scaleFactor, scaleFactor)
-
-        this._ctx = ctx
-      })
+  sliderValueChange(event){
+    console.log(event)
+    const thresholdName = event.currentTarget.dataset.thresholdName
+    console.log(thresholdName)
+    const threshold = this.data.threshold
+    threshold[thresholdName] = event.detail.value
+    this.setData({threshold})
   },
   async detectFace(frame) {
     if (this._model) { 
@@ -304,43 +309,8 @@ Page({
     }
   },
   turnWindowColor(colorName){
-    const backgroundColor = this.colorMap[colorName]
     this.setData({
-      backgroundColor
+      backgroundColor: this.colorMap[colorName]
     })
-    // wx.setNavigationBarColor({
-    //   frontColor: '#ffffff',
-    //   backgroundColor,
-    //   animation: {
-    //     duration: 50,
-    //     timingFunc: 'linear'
-    //   }
-    // })
-    // this.drawMask(backgroundColor)
-  },
-  drawMask(color){
-    // set fill color 
-    const ctx = this._ctx
-    ctx.fillStyle = color
-
-    const xy = [
-      [0.5,1,0.5,0,0.5],
-      [1,1,0,0,1]
-    ];
-    const size = this._canvas_size
-    const angle = Math.PI / 2
-
-    for(let i=0;i<4;++i){
-      ctx.beginPath();
-      ctx.moveTo(xy[0][i+1]*size, xy[0][i]*size);
-      ctx.arc(size/2, size/2, size/2, angle*i, angle*(i+1));
-      ctx.lineTo(xy[1][i+1]*size, xy[1][i]*size);
-      ctx.closePath();
-      ctx.fill();
-    }
-  },
-  onUnload(){
-    console.log("stop camera listener")
-    this._listener.stop()
   }
 })
