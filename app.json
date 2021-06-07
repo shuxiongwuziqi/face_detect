@@ -1,13 +1,6 @@
 {
   "pages": [
-    "pages/ui/index",
-    "pages/index/index",
-    "pages/livedetect/index",
-    "pages/myapi/index",
-    "pages/firstStart/index",
-    "pages/choosePhoto/index",
-    "pages/confirm/index",
-    "pages/list/index"
+    "pages/fine/index"
   ],
   "window": {
     "backgroundTextStyle": "light",

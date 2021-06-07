@@ -1,0 +1,42 @@
+<!--pages/ui/index.wxml-->
+<view class="container" style="background-color: {{colorMap[statusColor[status]]}};">
+  <view class="camera-container">
+    <camera device-position="{{devicePosition}}" flash="auto" frame-size="small">
+    </camera>
+    <cover-image wx:if="{{status === 'RECOGNITION_SUCESS'}}" src="{{faceImage}}"></cover-image>
+  </view>
+  <view wx:if="{{status != 'RECOGNITION_SUCESS'}}" class="detect-info-container">
+    <text>{{statusDisc[status]}}</text>
+    <button bind:tap="popupSetting" class="bottombtn">设置面板</button>
+  </view>
+  <view wx:else class="stu-info-container">
+    <text class="stu-info-title"> 学生信息</text>
+    <text class="stu-info-content">姓名：{{stuInfo.name}}</text>
+    <text class="stu-info-content">学号：{{stuInfo.id}}</text>
+    <text class="stu-info-content">考试：{{stuInfo.exam}}</text>
+    <text class="stu-info-content">考场：{{stuInfo.room}}</text>
+    <text class="stu-info-content">考试时间：{{stuInfo.time}}</text>
+    <button class="stu-info-confirm" type="primary" bind:tap="onConfirm">确认</button>
+  </view>
+  <l-arc-popup show="{{popupSetting}}" bind:lintap="closePopup">
+    <view class="threshold-container">
+      <text>光照强度阈值：{{dimThreshold}}~{{brightThreshold}}</text>
+      <view class="slider-container">
+        <slider min="0" max="127" value="{{dimThreshold}}" bindchange="sliderDimValueChange" activeColor='#cecacb'
+          backgroundColor='#f26a36' block-size="20">
+        </slider>
+        <slider min="129" max="255" value="{{brightThreshold}}" bindchange="sliderBrightValueChange"
+          activeColor='#f26a36' backgroundColor='#cecacb' block-size="20">
+        </slider>
+      </view>
+    </view>
+    <view class="input-container">
+      <text>模型地址:</text>
+      <input placeholder="输入模型地址" value="{{modelUrl}}" bindblur="changeModelUrl" />
+    </view>
+    <view class="input-container">
+      <text>人脸服务地址:</text>
+      <input placeholder="人脸服务地址" value="{{faceServerHost}}" bindblur="changeFaceServerHost" />
+    </view>
+  </l-arc-popup>
+</view>

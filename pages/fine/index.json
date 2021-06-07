@@ -1,0 +1,5 @@
+{
+  "usingComponents": {
+    "l-arc-popup": "/miniprogram_npm/lin-ui/arc-popup"
+  }
+}
