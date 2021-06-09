@@ -10,7 +10,7 @@
 
 ## 效果
 
-![f29e9a36130b2ad04b917d729d83a78e](.\showup\f29e9a36130b2ad04b917d729d83a78e.gif)
+![效果](./showup/f29e9a36130b2ad04b917d729d83a78e.gif)
 
 ## TODO
 
