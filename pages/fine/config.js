@@ -7,7 +7,7 @@ export const devicePosition = 'front';
 // 上弹框，开始状态是没有弹出
 export const popupSetting = false;
 // 光照强度阈值
-export const dimThreshold = 80;
-export const brightThreshold = 150;
+export const dimThreshold = 20;
+export const brightThreshold = 240;
 //间隔多少帧检测一次人脸
 export const detectFacePerFrame = 10;

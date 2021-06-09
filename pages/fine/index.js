@@ -193,8 +193,8 @@ Page({
     const fakeRes = {
       data: {
         'msg': 'success',
-        'id': '20172131096',
-        'name': '吴梓祺',
+        'id': '20132134036',
+        'name': 'wuziqi',
         'exam': '计算机原理',
         'room': '主教学楼 西340',
         'time': '9:30-11:30',
